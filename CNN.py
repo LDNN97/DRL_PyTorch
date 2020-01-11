@@ -3,9 +3,7 @@ import torch.utils.data
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 
-input_size = 784
-hidden_size = 500
-num_classes = 10
+
 num_epochs = 5
 batch_size = 100
 learning_rate = 0.001
@@ -28,30 +26,40 @@ test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                           shuffle=False)
 
 
-class Net(nn.Module):
-    def __init__(self, in_size, hide_size, n_classes):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(in_size, hide_size)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(hide_size, n_classes)
+class CNN(nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=5, padding=2),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(16, 32, kernel_size=5, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        self.fc = nn.Linear(7 * 7 * 32, 10)
 
     def forward(self, x):
-        out = self.fc1(x)
-        out = self.relu(out)
-        out = self.fc2(out)
+        out = self.layer1(x)
+        out = self.layer2(out)
+        out = out.view(out.size(0), -1)
+        out = self.fc(out)
         return out
 
 
-net = Net(input_size, hidden_size, num_classes)
+cnn = CNN()
 
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(cnn.parameters(), lr=learning_rate)
 
 for epoch in range(num_epochs):
     for i, (images, labels) in enumerate(train_loader):
-        images = images.view(-1, 28 * 28)
         optimizer.zero_grad()
-        outputs = net(images)
+        outputs = cnn(images)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -62,8 +70,7 @@ for epoch in range(num_epochs):
 correct = 0
 total = 0
 for images, labels in test_loader:
-    images = images.view(-1, 28 * 28)
-    outputs = net(images)
+    outputs = cnn(images)
     _, predicted = torch.max(outputs.data, 1)
     total += labels.size(0)
     correct += (predicted == labels).sum().numpy()
